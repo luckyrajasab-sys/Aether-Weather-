@@ -134,7 +134,11 @@ export const getLocationByIpApi = async () => {
  * Detects location by Google Maps Geolocation API
  */
 export const getLocationByGoogleApi = async (apiKey) => {
-  const key = apiKey || localStorage.getItem('google_maps_api_key') || import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const key =
+    apiKey ||
+    localStorage.getItem('google_maps_api_key') ||
+    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+    'AIzaSyDRbNQm6rHnwxxsLoTNFOhSBEVayq-Ph6I';
   if (!key) throw new Error('No Google Maps API Key found');
 
   const res = await fetch(`https://www.googleapis.com/geolocation/v1/geolocate?key=${key}`, {
