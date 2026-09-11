@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
-import Navbar from './components/Navbar';
-import FloatingSideBar from './components/FloatingSideBar';
+import TopBar from './components/TopBar';
 import WeatherBackground from './components/WeatherBackground';
 import WeatherHero from './components/WeatherHero';
 import WeatherAlerts from './components/WeatherAlerts';
@@ -60,6 +59,7 @@ function App() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
+  const [isMajorCitiesOpen, setIsMajorCitiesOpen] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState('today');
 
   // Section Refs for smooth mobile navigation
@@ -326,9 +326,8 @@ function App() {
 
       {/* Main Dashboard Layout */}
       <div className="dashboard-content" style={{ paddingBottom: '7.5rem', paddingTop: '1.25rem' }}>
-        {/* Top Branded Glass Header Bar */}
-        <Navbar
-          location={location}
+        {/* Apple-Inspired Glassmorphic Top Navigation Bar */}
+        <TopBar
           onRequestLocation={handleRequestLocation}
           tempUnit={tempUnit}
           onToggleTempUnit={handleToggleTempUnit}
@@ -338,30 +337,19 @@ function App() {
           onOpenShare={() => setIsShareModalOpen(true)}
           onOpenChat={() => setIsChatOpen(true)}
           onOpenSaved={() => setIsSavedModalOpen(true)}
+          onOpenMajorCities={() => setIsMajorCitiesOpen((prev) => !prev)}
+          isMajorCitiesOpen={isMajorCitiesOpen}
           lowPowerMode={lowPowerMode}
           onToggleLowPowerMode={handleToggleLowPowerMode}
-          savedCount={favorites.length}
+          currentLocation={location}
         />
 
-        {/* Floating Side Bar / Responsive Header Dock */}
-        <FloatingSideBar
-          onRequestLocation={handleRequestLocation}
-          tempUnit={tempUnit}
-          onToggleTempUnit={handleToggleTempUnit}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={handleToggleDarkMode}
-          isLoadingLocation={isLoadingLocation}
-          onOpenShare={() => setIsShareModalOpen(true)}
-          onOpenChat={() => setIsChatOpen(true)}
-          onOpenSaved={() => setIsSavedModalOpen(true)}
-          lowPowerMode={lowPowerMode}
-          onToggleLowPowerMode={handleToggleLowPowerMode}
-        />
-
-        {/* Major Metro Cities Strip */}
+        {/* Major Metro Cities Strip & Expanded View */}
         <LocationMeta
           location={location}
           onSelectCity={handleSelectLocation}
+          isExpanded={isMajorCitiesOpen}
+          onToggleExpand={setIsMajorCitiesOpen}
         />
 
         {/* Starred Favorites & Saved Locations Strip */}

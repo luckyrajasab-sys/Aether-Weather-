@@ -9,8 +9,23 @@ import {
 } from 'lucide-react';
 import { POPULAR_LOCATIONS, EXTENDED_CITIES_BY_CATEGORY } from '../services/locationService';
 
-export const LocationMeta = ({ location, onSelectCity }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+export const LocationMeta = ({
+  location,
+  onSelectCity,
+  isExpanded: externalIsExpanded,
+  onToggleExpand: externalOnToggleExpand
+}) => {
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false);
+  const isExpanded = externalIsExpanded !== undefined ? externalIsExpanded : internalIsExpanded;
+
+  const setIsExpanded = (val) => {
+    if (externalOnToggleExpand) {
+      externalOnToggleExpand(val);
+    } else {
+      setInternalIsExpanded(val);
+    }
+  };
+
   const [filterQuery, setFilterQuery] = useState('');
 
   const handleSelect = (city) => {
@@ -21,48 +36,47 @@ export const LocationMeta = ({ location, onSelectCity }) => {
 
   return (
     <div className="quick-cities-container animate-fade-in stagger-1">
-      {/* 1. Default Compact Strip with Interactive 'Major Cities' Button */}
-      {!isExpanded ? (
-        <div className="quick-cities-bar">
-          {/* Main 'Major Cities' Button that triggers full expansion */}
-          <button
-            className="major-cities-trigger-btn"
-            onClick={() => setIsExpanded(true)}
-            title="Click to view all State Capitals & Popular Cities"
-          >
-            <Building2 size={16} color="var(--primary-color)" className="anim-pulse" />
-            <span>Major Cities</span>
-            <ChevronDown size={14} color="var(--primary-color)" />
-          </button>
+      {/* 1. Default Compact Strip */}
+      <div className="quick-cities-bar">
+        {/* 'Major Cities' Button inside the quick strip */}
+        <button
+          className={`major-cities-trigger-btn ${isExpanded ? 'active' : ''}`}
+          onClick={() => setIsExpanded(!isExpanded)}
+          title="Click to view all State Capitals & Popular Cities"
+        >
+          <Building2 size={16} color="var(--primary-color)" className="anim-pulse" />
+          <span>Major Cities</span>
+          <ChevronDown size={14} color="var(--primary-color)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </button>
 
-          {/* Quick Major Cities Chips */}
-          {POPULAR_LOCATIONS.map((city) => {
-            const isActive = city.name.toLowerCase() === location.name.toLowerCase();
-            return (
-              <button
-                key={city.name}
-                className={`city-chip ${isActive ? 'active' : ''}`}
-                onClick={() => onSelectCity(city)}
-              >
-                {city.name}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        /* 2. Expanded All Cities View with Back Button */
-        <div className="all-cities-expanded-card glass-card animate-fade-in">
+        {/* Quick Major Cities Chips */}
+        {POPULAR_LOCATIONS.map((city) => {
+          const isActive = city.name.toLowerCase() === location.name.toLowerCase();
+          return (
+            <button
+              key={city.name}
+              className={`city-chip ${isActive ? 'active' : ''}`}
+              onClick={() => onSelectCity(city)}
+            >
+              {city.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 2. Expanded All Cities View Modal / Panel */}
+      {isExpanded && (
+        <div className="all-cities-expanded-card glass-card animate-fade-in" style={{ marginTop: '0.75rem' }}>
           {/* Header with Back Button */}
           <div className="expanded-cities-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              {/* Back Button */}
               <button
                 className="cities-back-btn"
                 onClick={() => {
                   setIsExpanded(false);
                   setFilterQuery('');
                 }}
-                title="Back to compact city strip"
+                title="Close Major Cities"
               >
                 <ArrowLeft size={16} />
                 <span>Back</span>
@@ -71,7 +85,7 @@ export const LocationMeta = ({ location, onSelectCity }) => {
               <div>
                 <h3 className="expanded-header-title">All Major Cities & State Capitals</h3>
                 <span className="expanded-header-subtitle">
-                  Showing popular metros, state capitals, and economic hubs
+                  Popular metros, state capitals, and international hubs
                 </span>
               </div>
             </div>
@@ -98,7 +112,7 @@ export const LocationMeta = ({ location, onSelectCity }) => {
             </div>
           </div>
 
-          {/* All Categorized Cities Grid */}
+          {/* Categorized Cities Grid */}
           <div className="expanded-categories-list">
             {EXTENDED_CITIES_BY_CATEGORY.map((section) => {
               const filteredCities = section.cities.filter(
