@@ -1,11 +1,7 @@
-/* ==========================================================================
-   Apple-Inspired Glassmorphism Design System & Weather Dashboard Global Styles
-   ========================================================================== */
-
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-main: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Dynamic Theme Variables (overridden by active weather state) */
@@ -187,30 +183,28 @@ html, body {
    AETHER TOPBAR (Apple-Inspired Top Navigation Bar)
    ========================================================================== */
 .aether-topbar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
   width: 100%;
-  margin-bottom: 1.25rem;
-  padding: 0.65rem 1.15rem;
-  border-radius: var(--radius-xl);
-  background: rgba(15, 23, 42, 0.82);
+  z-index: 1000;
+  padding: 0.65rem 1.75rem;
+  background: rgba(10, 15, 26, 0.86);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px var(--glow-color);
-  animation: cardFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   transition: all var(--transition-normal);
 }
 
-.aether-topbar:hover {
-  background: rgba(15, 23, 42, 0.9);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
 .topbar-inner {
+  max-width: 1360px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  flex-wrap: wrap;
 }
 
 .topbar-left {
@@ -363,17 +357,6 @@ html, body {
   transform: translateY(-1px);
 }
 
-.topbar-action-btn.ai-chat-btn {
-  background: rgba(56, 189, 248, 0.12);
-  border-color: rgba(56, 189, 248, 0.3);
-  color: #38BDF8;
-}
-
-.topbar-action-btn.ai-chat-btn:hover {
-  background: rgba(56, 189, 248, 0.22);
-  border-color: var(--primary-color);
-}
-
 .topbar-action-btn.active-eco {
   background: rgba(16, 185, 129, 0.2);
   border-color: rgba(16, 185, 129, 0.5);
@@ -404,113 +387,6 @@ html, body {
   background: var(--primary-color);
   color: #000;
   box-shadow: 0 2px 8px var(--glow-color);
-}
-
-/* Fallback / legacy support */
-.flying-sidebar-dock {
-  display: none !important;
-}
-
-.sidebar-action-btn {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.sidebar-action-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: scale(1.1);
-}
-
-.sidebar-action-btn.primary {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  border: none;
-  box-shadow: 0 4px 12px var(--glow-color);
-}
-
-.sidebar-action-btn.primary:hover {
-  filter: brightness(1.15);
-  transform: scale(1.12);
-}
-
-.sidebar-action-btn.unit-toggle {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(--primary-color);
-  color: #fff;
-}
-
-.sidebar-tooltip {
-  position: absolute;
-  right: calc(100% + 12px);
-  top: 50%;
-  transform: translateY(-50%) scale(0.9);
-  opacity: 0;
-  pointer-events: none;
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-sm);
-  padding: 0.35rem 0.75rem;
-  color: #fff;
-  font-size: 0.78rem;
-  font-weight: 700;
-  white-space: nowrap;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-  transition: all var(--transition-fast);
-}
-
-.sidebar-brand-btn:hover .sidebar-tooltip,
-.sidebar-action-btn:hover .sidebar-tooltip {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
-}
-
-/* Tablet & Mobile responsive sidebar dock */
-@media (max-width: 960px) {
-  .flying-sidebar-dock {
-    position: static;
-    flex-direction: row;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 0.5rem;
-    padding: 0.6rem 1rem;
-    border-radius: var(--radius-lg);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-    animation: none;
-  }
-
-  .sidebar-brand-label {
-    display: inline-block;
-  }
-
-  .sidebar-divider {
-    display: none;
-  }
-
-  .sidebar-actions-group {
-    flex-direction: row;
-    gap: 0.5rem;
-  }
-
-  .sidebar-action-btn, .sidebar-brand-icon {
-    width: 38px;
-    height: 38px;
-  }
-
-  .sidebar-tooltip {
-    display: none;
-  }
 }
 
 /* Sleek, Compact Search Bar & Autocomplete */
@@ -3544,23 +3420,106 @@ html, body {
 }
 
 /* ==========================================================================
-   WEATHER RADAR ENHANCEMENTS
+   WEATHER RADAR ENHANCEMENTS & FULLSCREEN PORTAL
    ========================================================================== */
-.radar-fullscreen {
+.radar-fullscreen-portal-overlay {
   position: fixed !important;
-  inset: 1rem !important;
-  z-index: 9999 !important;
-  max-width: none !important;
-  margin: 0 !important;
-  height: calc(100vh - 2rem) !important;
-  display: flex;
-  flex-direction: column;
+  inset: 0 !important;
+  z-index: 999999 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(5, 9, 18, 0.96) !important;
+  backdrop-filter: blur(36px) !important;
+  -webkit-backdrop-filter: blur(36px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 1rem !important;
+  box-sizing: border-box !important;
+  animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.radar-fullscreen .radar-map-wrapper {
-  flex: 1;
-  height: auto !important;
+.radar-fullscreen-portal-card {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 1.25rem 1.5rem !important;
+  border-radius: var(--radius-xl) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8) !important;
+  margin: 0 !important;
+}
+
+.radar-fullscreen-portal-card .radar-map-wrapper {
+  flex: 1 !important;
+  height: 100% !important;
   min-height: 0 !important;
+  margin-top: 0.75rem !important;
+  border-radius: var(--radius-lg) !important;
+}
+
+.radar-fullscreen-portal-card .radar-leaflet-map {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.expand-radar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 34px;
+  padding: 0 0.85rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.expand-radar-btn.active-fullscreen {
+  background: rgba(251, 191, 36, 0.2) !important;
+  border-color: rgba(251, 191, 36, 0.5) !important;
+  color: #FBBF24 !important;
+}
+
+.radar-floating-tools {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.radar-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  transition: all 0.15s ease;
+}
+
+.radar-tool-btn:hover {
+  background: var(--primary-color);
+  color: #000;
+  border-color: var(--primary-color);
+  transform: scale(1.08);
+}
+
+.radar-tool-btn.center-loc:hover {
+  background: #FBBF24;
+  color: #000;
+  border-color: #FBBF24;
 }
 
 .radar-palette-select {

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -13,33 +14,36 @@ import {
   X,
   Globe,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Plus,
+  Minus,
+  LocateFixed
 } from 'lucide-react';
 
 const COLOR_SCHEMES = [
   { id: 2, name: 'Universal Doppler' },
-  { id: 1, name: 'Titan Color' },
-  { id: 4, name: 'Rainbow HD' },
-  { id: 6, name: 'Dark Theme' }
+  { id: 1, name: 'Titan HD' },
+  { id: 4, name: 'Rainbow Colors' },
+  { id: 6, name: 'Deep Contrast' }
 ];
 
 const PLAYBACK_SPEEDS = [
   { label: '0.5x', delay: 1200 },
   { label: '1x', delay: 650 },
-  { label: '2x', delay: 350 }
+  { label: '2x', delay: 320 }
 ];
 
 export const WeatherRadar = ({ latitude, longitude, locationName }) => {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const radarLayerRef = useRef(null);
-  const googleMapRef = useRef(null);
+  const markerRef = useRef(null);
 
   const [timestamps, setTimestamps] = useState([]);
   const [currentFrameIdx, setCurrentFrameIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [radarColor, setRadarColor] = useState(2);
-  const [speedIdx, setSpeedIdx] = useState(1); // 1x by default
+  const [speedIdx, setSpeedIdx] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mapProvider, setMapProvider] = useState(() => localStorage.getItem('weather_map_provider') || 'leaflet');
   const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('google_maps_api_key') || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDRbNQm6rHnwxxsLoTNFOhSBEVayq-Ph6I');
@@ -47,7 +51,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
   const [keyInput, setKeyInput] = useState(googleApiKey);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Initialize Leaflet Map
+  // Initialize or re-center Leaflet Map
   useEffect(() => {
     if (mapProvider !== 'leaflet' || !mapContainerRef.current) return;
 
@@ -59,13 +63,13 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
         attributionControl: false
       });
 
-      // Dark Matter CartoDB Basemap
+      // CartoDB Voyager / Dark Basemap
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_labels_under/{z}/{x}/{y}{r}.png', {
         maxZoom: 18,
         subdomains: 'abcd'
       }).addTo(map);
 
-      // Custom city marker with pulsing glow
+      // Custom pulsing city marker
       const customIcon = L.divIcon({
         className: 'custom-map-marker',
         html: `<div class="radar-city-pin"><span>${locationName || 'City'}</span></div>`,
@@ -73,21 +77,44 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
         iconAnchor: [40, 15]
       });
 
-      L.marker([latitude, longitude], { icon: customIcon }).addTo(map);
-
+      const marker = L.marker([latitude, longitude], { icon: customIcon }).addTo(map);
+      markerRef.current = marker;
       mapInstanceRef.current = map;
     } else {
-      mapInstanceRef.current.setView([latitude, longitude], 7);
-      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 300);
+      mapInstanceRef.current.setView([latitude, longitude], isFullscreen ? 8 : 7);
+      if (markerRef.current) {
+        markerRef.current.setLatLng([latitude, longitude]);
+      }
     }
 
+    // Trigger size invalidation smoothly
+    const timer = setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 150);
+
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+      clearTimeout(timer);
     };
   }, [latitude, longitude, locationName, mapProvider, isFullscreen]);
+
+  // Handle Fullscreen Invalidate Size & Keyboard Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullscreen]);
 
   // Fetch RainViewer radar frame timestamps
   useEffect(() => {
@@ -102,7 +129,6 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
         const frames = past.concat(nowcast);
         if (frames.length > 0) {
           setTimestamps(frames);
-          // Set initial frame to latest past frame
           const initialIdx = past.length > 0 ? past.length - 1 : frames.length - 1;
           setCurrentFrameIdx(initialIdx);
         }
@@ -130,54 +156,13 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
     const tileUrl = `https://tilecache.rainviewer.com${tilePath}/256/{z}/{x}/{y}/${radarColor}/1_1.png`;
 
     const newLayer = L.tileLayer(tileUrl, {
-      opacity: 0.76,
+      opacity: 0.78,
       zIndex: 10
     });
 
     newLayer.addTo(map);
     radarLayerRef.current = newLayer;
   }, [currentFrameIdx, timestamps, radarColor, mapProvider]);
-
-  // Load Google Maps Script if Google Maps provider selected
-  useEffect(() => {
-    if (mapProvider !== 'google') return;
-
-    const scriptId = 'google-maps-script';
-    let script = document.getElementById(scriptId);
-
-    const initGoogleMap = () => {
-      if (window.google && mapContainerRef.current) {
-        const gMap = new window.google.maps.Map(mapContainerRef.current, {
-          center: { lat: latitude, lng: longitude },
-          zoom: 8,
-          mapTypeId: 'terrain',
-          disableDefaultUI: true
-        });
-
-        new window.google.maps.Marker({
-          position: { lat: latitude, lng: longitude },
-          map: gMap,
-          title: locationName
-        });
-
-        googleMapRef.current = gMap;
-      }
-    };
-
-    if (!window.google) {
-      if (!script) {
-        script = document.createElement('script');
-        script.id = scriptId;
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${googleApiKey || ''}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        script.onload = initGoogleMap;
-        document.head.appendChild(script);
-      }
-    } else {
-      initGoogleMap();
-    }
-  }, [mapProvider, googleApiKey, latitude, longitude, locationName]);
 
   // Animation Loop with selected speed
   useEffect(() => {
@@ -190,6 +175,19 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
     }
     return () => clearInterval(interval);
   }, [isPlaying, timestamps, speedIdx]);
+
+  // Zoom helpers
+  const handleZoomIn = () => {
+    mapInstanceRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    mapInstanceRef.current?.zoomOut();
+  };
+
+  const handleCenterLocation = () => {
+    mapInstanceRef.current?.setView([latitude, longitude], isFullscreen ? 8 : 7, { animate: true });
+  };
 
   const handleSaveKey = () => {
     localStorage.setItem('google_maps_api_key', keyInput);
@@ -219,15 +217,17 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
     ? 'LIVE NOW'
     : `${Math.abs(timeDiffMins)}m ago`;
 
-  return (
-    <div className={`glass-card radar-card-container animate-fade-in ${isFullscreen ? 'radar-fullscreen' : ''}`}>
+  // Radar Map Controls and Viewport markup
+  const renderMapContent = () => (
+    <>
+      {/* Header Row */}
       <div className="section-title-row">
         <h3 className="section-title">
           <Radio size={20} color="var(--primary-color)" />
-          <span>Interactive Live Radar & Maps</span>
+          <span>Interactive Live Radar & Doppler Maps</span>
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-          {/* Color palette selector */}
+          {/* Color Palette Selector */}
           <select
             className="radar-palette-select"
             value={radarColor}
@@ -239,14 +239,15 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
             ))}
           </select>
 
-          {/* Fullscreen Expand Button */}
+          {/* Fullscreen Expand / Exit Button */}
           <button
-            className="nav-btn"
-            style={{ height: '34px', padding: '0 0.65rem' }}
+            className={`nav-btn expand-radar-btn ${isFullscreen ? 'active-fullscreen' : ''}`}
             onClick={() => setIsFullscreen(!isFullscreen)}
-            title={isFullscreen ? 'Exit Fullscreen' : 'Expand Radar Fullscreen'}
+            title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Expand Fullscreen Radar'}
+            aria-label={isFullscreen ? 'Exit Fullscreen' : 'Expand Fullscreen'}
           >
-            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            {isFullscreen ? <Minimize2 size={16} color="#FBBF24" /> : <Maximize2 size={16} />}
+            <span className="expand-btn-text">{isFullscreen ? 'Close Fullscreen' : 'Expand Map'}</span>
           </button>
 
           {/* Google Maps Key Button */}
@@ -268,7 +269,20 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
 
       {/* Map Viewport Container */}
       <div className="radar-map-wrapper">
-        <div ref={mapContainerRef} className="radar-leaflet-map" key={`${mapProvider}-${isFullscreen}`} />
+        <div ref={mapContainerRef} className="radar-leaflet-map" />
+
+        {/* Floating Quick Tools (Zoom + Center) */}
+        <div className="radar-floating-tools">
+          <button className="radar-tool-btn" onClick={handleZoomIn} title="Zoom In">
+            <Plus size={16} />
+          </button>
+          <button className="radar-tool-btn" onClick={handleZoomOut} title="Zoom Out">
+            <Minus size={16} />
+          </button>
+          <button className="radar-tool-btn center-loc" onClick={handleCenterLocation} title="Center on My City">
+            <LocateFixed size={16} />
+          </button>
+        </div>
 
         {/* Floating Playback Controls Bar */}
         {mapProvider === 'leaflet' && (
@@ -330,6 +344,28 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Normal Embedded Card on Dashboard */}
+      {!isFullscreen && (
+        <div className="glass-card radar-card-container animate-fade-in">
+          {renderMapContent()}
+        </div>
+      )}
+
+      {/* Fullscreen Portal rendered directly into document.body to break free of any stacking contexts */}
+      {isFullscreen &&
+        createPortal(
+          <div className="radar-fullscreen-portal-overlay animate-fade-in">
+            <div className="radar-fullscreen-portal-card glass-card">
+              {renderMapContent()}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Google Maps API Key & Settings Modal */}
       {isKeyModalOpen && (
@@ -419,7 +455,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

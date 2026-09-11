@@ -23,11 +23,6 @@
       "description": "Open live Doppler precipitation radar"
     },
     {
-      "name": "AI Meteorologist",
-      "url": "/?tab=chat",
-      "description": "Ask weather and commute questions"
-    },
-    {
       "name": "Saved Cities",
       "url": "/?tab=saved",
       "description": "View and switch saved weather locations"

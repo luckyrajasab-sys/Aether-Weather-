@@ -6,7 +6,6 @@ import {
   Moon,
   Loader2,
   Share2,
-  Sparkles,
   Bookmark,
   Building2,
   ChevronDown,
@@ -22,7 +21,6 @@ export const TopBar = ({
   onToggleDarkMode,
   isLoadingLocation,
   onOpenShare,
-  onOpenChat,
   onOpenSaved,
   onOpenMajorCities,
   isMajorCitiesOpen,
@@ -82,19 +80,6 @@ export const TopBar = ({
             )}
             <span className="action-btn-text">{isLoadingLocation ? 'Locating...' : 'My Location'}</span>
           </button>
-
-          {/* AI Meteorologist Chat */}
-          {onOpenChat && (
-            <button
-              className="topbar-action-btn ai-chat-btn"
-              onClick={onOpenChat}
-              title="Ask Aether AI Meteorologist"
-              aria-label="Open AI Meteorologist"
-            >
-              <Sparkles size={16} className="sparkle-anim" color="#38BDF8" />
-              <span className="action-btn-text ai-label">AI Chat</span>
-            </button>
-          )}
 
           {/* Saved Locations */}
           {onOpenSaved && (

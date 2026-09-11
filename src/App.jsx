@@ -16,7 +16,6 @@ import SkeletonLoader from './components/SkeletonLoader';
 import LoadingScreen from './components/LoadingScreen';
 import ErrorScreen from './components/ErrorScreen';
 import Footer from './components/Footer';
-import WeatherChat from './components/WeatherChat';
 import SavedLocationsModal from './components/SavedLocationsModal';
 import InAppAlertNotification from './components/InAppAlertNotification';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -57,7 +56,6 @@ function App() {
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   const [favorites, setFavorites] = useState(() => getSavedLocations());
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isMajorCitiesOpen, setIsMajorCitiesOpen] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState('today');
@@ -110,7 +108,6 @@ function App() {
     const lonParam = params.get('lon');
     const tabParam = params.get('tab');
 
-    if (tabParam === 'chat') setIsChatOpen(true);
     if (tabParam === 'saved') setIsSavedModalOpen(true);
     if (tabParam === 'radar') {
       setActiveMobileTab('radar');
@@ -324,26 +321,25 @@ function App() {
         />
       )}
 
+      {/* Apple-Inspired Glassmorphic Top Navigation Bar */}
+      <TopBar
+        onRequestLocation={handleRequestLocation}
+        tempUnit={tempUnit}
+        onToggleTempUnit={handleToggleTempUnit}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        isLoadingLocation={isLoadingLocation}
+        onOpenShare={() => setIsShareModalOpen(true)}
+        onOpenSaved={() => setIsSavedModalOpen(true)}
+        onOpenMajorCities={() => setIsMajorCitiesOpen((prev) => !prev)}
+        isMajorCitiesOpen={isMajorCitiesOpen}
+        lowPowerMode={lowPowerMode}
+        onToggleLowPowerMode={handleToggleLowPowerMode}
+        currentLocation={location}
+      />
+
       {/* Main Dashboard Layout */}
       <div className="dashboard-content" style={{ paddingBottom: '7.5rem', paddingTop: '1.25rem' }}>
-        {/* Apple-Inspired Glassmorphic Top Navigation Bar */}
-        <TopBar
-          onRequestLocation={handleRequestLocation}
-          tempUnit={tempUnit}
-          onToggleTempUnit={handleToggleTempUnit}
-          isDarkMode={isDarkMode}
-          onToggleDarkMode={handleToggleDarkMode}
-          isLoadingLocation={isLoadingLocation}
-          onOpenShare={() => setIsShareModalOpen(true)}
-          onOpenChat={() => setIsChatOpen(true)}
-          onOpenSaved={() => setIsSavedModalOpen(true)}
-          onOpenMajorCities={() => setIsMajorCitiesOpen((prev) => !prev)}
-          isMajorCitiesOpen={isMajorCitiesOpen}
-          lowPowerMode={lowPowerMode}
-          onToggleLowPowerMode={handleToggleLowPowerMode}
-          currentLocation={location}
-        />
-
         {/* Major Metro Cities Strip & Expanded View */}
         <LocationMeta
           location={location}
@@ -468,16 +464,6 @@ function App() {
         ) : null}
       </div>
 
-      {/* Conversational AI Meteorologist Panel */}
-      <WeatherChat
-        weather={weather}
-        location={location}
-        tempUnit={tempUnit}
-        isOpen={isChatOpen}
-        onOpen={() => setIsChatOpen(true)}
-        onClose={() => setIsChatOpen(false)}
-      />
-
       {/* Saved Locations & Home City Management Modal */}
       <SavedLocationsModal
         isOpen={isSavedModalOpen}
@@ -496,8 +482,6 @@ function App() {
         onTabChange={handleMobileTabChange}
         alertCount={activeAlertsCount}
         onOpenSavedModal={() => setIsSavedModalOpen(true)}
-        onOpenChatModal={() => setIsChatOpen(true)}
-        isChatOpen={isChatOpen}
       />
     </div>
   );

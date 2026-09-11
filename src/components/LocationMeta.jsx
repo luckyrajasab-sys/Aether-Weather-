@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Building2,
-  ChevronDown,
   ArrowLeft,
   MapPin,
   Search,
@@ -38,17 +36,6 @@ export const LocationMeta = ({
     <div className="quick-cities-container animate-fade-in stagger-1">
       {/* 1. Default Compact Strip */}
       <div className="quick-cities-bar">
-        {/* 'Major Cities' Button inside the quick strip */}
-        <button
-          className={`major-cities-trigger-btn ${isExpanded ? 'active' : ''}`}
-          onClick={() => setIsExpanded(!isExpanded)}
-          title="Click to view all State Capitals & Popular Cities"
-        >
-          <Building2 size={16} color="var(--primary-color)" className="anim-pulse" />
-          <span>Major Cities</span>
-          <ChevronDown size={14} color="var(--primary-color)" style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-        </button>
-
         {/* Quick Major Cities Chips */}
         {POPULAR_LOCATIONS.map((city) => {
           const isActive = city.name.toLowerCase() === location.name.toLowerCase();
