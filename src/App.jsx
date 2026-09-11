@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
+import Navbar from './components/Navbar';
 import FloatingSideBar from './components/FloatingSideBar';
 import WeatherBackground from './components/WeatherBackground';
 import WeatherHero from './components/WeatherHero';
@@ -324,7 +325,24 @@ function App() {
       )}
 
       {/* Main Dashboard Layout */}
-      <div className="dashboard-content" style={{ paddingBottom: '7.5rem', paddingTop: '1.5rem' }}>
+      <div className="dashboard-content" style={{ paddingBottom: '7.5rem', paddingTop: '1.25rem' }}>
+        {/* Top Branded Glass Header Bar */}
+        <Navbar
+          location={location}
+          onRequestLocation={handleRequestLocation}
+          tempUnit={tempUnit}
+          onToggleTempUnit={handleToggleTempUnit}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={handleToggleDarkMode}
+          isLoadingLocation={isLoadingLocation}
+          onOpenShare={() => setIsShareModalOpen(true)}
+          onOpenChat={() => setIsChatOpen(true)}
+          onOpenSaved={() => setIsSavedModalOpen(true)}
+          lowPowerMode={lowPowerMode}
+          onToggleLowPowerMode={handleToggleLowPowerMode}
+          savedCount={favorites.length}
+        />
+
         {/* Floating Side Bar / Responsive Header Dock */}
         <FloatingSideBar
           onRequestLocation={handleRequestLocation}
