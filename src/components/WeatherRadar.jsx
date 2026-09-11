@@ -6,15 +6,28 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  Layers,
   Radio,
   ExternalLink,
   Key,
   Check,
   X,
-  MapPin,
-  Globe
+  Globe,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
+
+const COLOR_SCHEMES = [
+  { id: 2, name: 'Universal Doppler' },
+  { id: 1, name: 'Titan Color' },
+  { id: 4, name: 'Rainbow HD' },
+  { id: 6, name: 'Dark Theme' }
+];
+
+const PLAYBACK_SPEEDS = [
+  { label: '0.5x', delay: 1200 },
+  { label: '1x', delay: 650 },
+  { label: '2x', delay: 350 }
+];
 
 export const WeatherRadar = ({ latitude, longitude, locationName }) => {
   const mapContainerRef = useRef(null);
@@ -25,8 +38,10 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
   const [timestamps, setTimestamps] = useState([]);
   const [currentFrameIdx, setCurrentFrameIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [radarColor, setRadarColor] = useState(2); // 2: Universal Blue/Green/Red
-  const [mapProvider, setMapProvider] = useState(() => localStorage.getItem('weather_map_provider') || 'leaflet'); // 'leaflet' | 'google'
+  const [radarColor, setRadarColor] = useState(2);
+  const [speedIdx, setSpeedIdx] = useState(1); // 1x by default
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapProvider, setMapProvider] = useState(() => localStorage.getItem('weather_map_provider') || 'leaflet');
   const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('google_maps_api_key') || import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDRbNQm6rHnwxxsLoTNFOhSBEVayq-Ph6I');
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [keyInput, setKeyInput] = useState(googleApiKey);
@@ -63,6 +78,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
       mapInstanceRef.current = map;
     } else {
       mapInstanceRef.current.setView([latitude, longitude], 7);
+      setTimeout(() => mapInstanceRef.current?.invalidateSize(), 300);
     }
 
     return () => {
@@ -71,7 +87,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
         mapInstanceRef.current = null;
       }
     };
-  }, [latitude, longitude, locationName, mapProvider]);
+  }, [latitude, longitude, locationName, mapProvider, isFullscreen]);
 
   // Fetch RainViewer radar frame timestamps
   useEffect(() => {
@@ -81,10 +97,14 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
         if (!response.ok) throw new Error('Failed to fetch radar timestamps');
         const data = await response.json();
 
-        const frames = (data.radar?.past || []).concat(data.radar?.nowcast || []);
+        const past = data.radar?.past || [];
+        const nowcast = data.radar?.nowcast || [];
+        const frames = past.concat(nowcast);
         if (frames.length > 0) {
           setTimestamps(frames);
-          setCurrentFrameIdx(frames.length - 1); // latest
+          // Set initial frame to latest past frame
+          const initialIdx = past.length > 0 ? past.length - 1 : frames.length - 1;
+          setCurrentFrameIdx(initialIdx);
         }
       } catch (err) {
         console.warn('RainViewer API error:', err);
@@ -110,7 +130,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
     const tileUrl = `https://tilecache.rainviewer.com${tilePath}/256/{z}/{x}/{y}/${radarColor}/1_1.png`;
 
     const newLayer = L.tileLayer(tileUrl, {
-      opacity: 0.72,
+      opacity: 0.76,
       zIndex: 10
     });
 
@@ -159,16 +179,17 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
     }
   }, [mapProvider, googleApiKey, latitude, longitude, locationName]);
 
-  // Animation Loop
+  // Animation Loop with selected speed
   useEffect(() => {
     let interval;
     if (isPlaying && timestamps.length > 0) {
+      const delay = PLAYBACK_SPEEDS[speedIdx].delay;
       interval = setInterval(() => {
         setCurrentFrameIdx((prev) => (prev + 1) % timestamps.length);
-      }, 700);
+      }, delay);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, timestamps]);
+  }, [isPlaying, timestamps, speedIdx]);
 
   const handleSaveKey = () => {
     localStorage.setItem('google_maps_api_key', keyInput);
@@ -182,19 +203,53 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
     localStorage.setItem('weather_map_provider', provider);
   };
 
-  const currentFrameTime = timestamps[currentFrameIdx]
-    ? new Date(timestamps[currentFrameIdx].time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const currentFrameObj = timestamps[currentFrameIdx];
+  const isNowcast = currentFrameObj && currentFrameObj.time * 1000 > Date.now();
+  const currentFrameTime = currentFrameObj
+    ? new Date(currentFrameObj.time * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : '--:--';
 
+  const timeDiffMins = currentFrameObj
+    ? Math.round((currentFrameObj.time * 1000 - Date.now()) / (60 * 1000))
+    : 0;
+
+  const timeRelativeLabel = timeDiffMins > 0
+    ? `+${timeDiffMins}m (Forecast)`
+    : timeDiffMins >= -5
+    ? 'LIVE NOW'
+    : `${Math.abs(timeDiffMins)}m ago`;
+
   return (
-    <div className="glass-card radar-card-container animate-fade-in">
+    <div className={`glass-card radar-card-container animate-fade-in ${isFullscreen ? 'radar-fullscreen' : ''}`}>
       <div className="section-title-row">
         <h3 className="section-title">
           <Radio size={20} color="var(--primary-color)" />
           <span>Interactive Live Radar & Maps</span>
         </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          {/* Map API Key & Layers Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {/* Color palette selector */}
+          <select
+            className="radar-palette-select"
+            value={radarColor}
+            onChange={(e) => setRadarColor(Number(e.target.value))}
+            title="Radar Color Palette"
+          >
+            {COLOR_SCHEMES.map((cs) => (
+              <option key={cs.id} value={cs.id}>{cs.name}</option>
+            ))}
+          </select>
+
+          {/* Fullscreen Expand Button */}
+          <button
+            className="nav-btn"
+            style={{ height: '34px', padding: '0 0.65rem' }}
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Expand Radar Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+          </button>
+
+          {/* Google Maps Key Button */}
           <button
             className="nav-btn"
             style={{ height: '34px', fontSize: '0.78rem', padding: '0 0.85rem' }}
@@ -202,7 +257,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
             title="Google Maps API Key & Layer Settings"
           >
             <Key size={14} color="#FBBF24" />
-            <span>Google Maps Key</span>
+            <span>Map Key</span>
           </button>
 
           <span className="radar-live-badge">
@@ -213,7 +268,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
 
       {/* Map Viewport Container */}
       <div className="radar-map-wrapper">
-        <div ref={mapContainerRef} className="radar-leaflet-map" key={mapProvider} />
+        <div ref={mapContainerRef} className="radar-leaflet-map" key={`${mapProvider}-${isFullscreen}`} />
 
         {/* Floating Playback Controls Bar */}
         {mapProvider === 'leaflet' && (
@@ -222,7 +277,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
               <button
                 className="radar-ctrl-btn"
                 onClick={() => setCurrentFrameIdx((prev) => (prev - 1 + timestamps.length) % timestamps.length)}
-                title="Previous Frame"
+                title="Previous Frame (Past)"
               >
                 <SkipBack size={15} />
               </button>
@@ -230,7 +285,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
               <button
                 className="radar-ctrl-btn play-btn"
                 onClick={() => setIsPlaying(!isPlaying)}
-                title={isPlaying ? 'Pause' : 'Play Animation'}
+                title={isPlaying ? 'Pause Doppler Animation' : 'Play Doppler Radar Animation'}
               >
                 {isPlaying ? <Pause size={16} /> : <Play size={16} />}
               </button>
@@ -238,14 +293,26 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
               <button
                 className="radar-ctrl-btn"
                 onClick={() => setCurrentFrameIdx((prev) => (prev + 1) % timestamps.length)}
-                title="Next Frame"
+                title="Next Frame (Forward)"
               >
                 <SkipForward size={15} />
+              </button>
+
+              {/* Speed Switcher */}
+              <button
+                className="radar-speed-toggle-btn"
+                onClick={() => setSpeedIdx((prev) => (prev + 1) % PLAYBACK_SPEEDS.length)}
+                title={`Playback Speed: ${PLAYBACK_SPEEDS[speedIdx].label}`}
+              >
+                {PLAYBACK_SPEEDS[speedIdx].label}
               </button>
             </div>
 
             <div className="radar-timestamp-badge">
-              <span>{currentFrameTime}</span>
+              <span className={`radar-time-pill ${isNowcast ? 'nowcast' : ''}`}>
+                {timeRelativeLabel}
+              </span>
+              <span className="radar-exact-time">{currentFrameTime}</span>
             </div>
 
             {/* Timeline progress slider */}
@@ -257,6 +324,7 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
                 value={currentFrameIdx}
                 onChange={(e) => setCurrentFrameIdx(Number(e.target.value))}
                 className="radar-slider"
+                aria-label="Radar frame playback scrubber"
               />
             )}
           </div>
@@ -282,7 +350,6 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
                 Connect your Google Maps JavaScript API key to enable native Google Maps satellite, terrain, and road views.
               </p>
 
-              {/* Direct Official Link */}
               <div style={{ padding: '0.85rem 1rem', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255, 255, 255, 0.12)' }}>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
                   OFFICIAL GOOGLE MAPS DOCUMENTATION:
@@ -298,7 +365,6 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
                 </a>
               </div>
 
-              {/* Input for Google Maps API Key */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
                   Paste Google Maps API Key:
@@ -322,7 +388,6 @@ export const WeatherRadar = ({ latitude, longitude, locationName }) => {
                 </div>
               </div>
 
-              {/* Map Provider Switcher */}
               <div style={{ marginTop: '0.5rem' }}>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
                   Active Map Layer:

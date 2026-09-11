@@ -7,7 +7,8 @@ export const WeatherBackground = ({
   location,
   weatherGroup = 'clear',
   isDay = 1,
-  isDarkMode = false
+  isDarkMode = false,
+  lowPowerMode = false
 }) => {
   const theme = WEATHER_THEMES[weatherGroup] || WEATHER_THEMES.clear;
   const bgMeta = getNatureWeatherMeta(location, weatherGroup, isDay);
@@ -31,7 +32,7 @@ export const WeatherBackground = ({
   }, [theme, isDarkMode]);
 
   return (
-    <div className={`weather-bg-container weather-bg-${weatherGroup} ${!isDay ? 'is-night' : 'is-day'}`}>
+    <div className={`weather-bg-container weather-bg-${weatherGroup} ${!isDay ? 'is-night' : 'is-day'} ${lowPowerMode ? 'low-power-active' : ''}`}>
       {/* High-Resolution Nature Weather Picture */}
       <img
         key={imgSrc}
@@ -43,6 +44,7 @@ export const WeatherBackground = ({
           }
         }}
         className="weather-bg-image"
+        loading="lazy"
       />
 
       {/* Atmospheric Theme Gradient & Readability Overlays */}
@@ -68,6 +70,3 @@ export const WeatherBackground = ({
 };
 
 export default WeatherBackground;
-
-
-

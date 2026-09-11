@@ -244,43 +244,115 @@ export const saveRecentSearch = (location) => {
   }
 };
 
-export const getFavorites = () => {
+export const getSavedLocations = () => {
   try {
-    const data = localStorage.getItem('weather_favorites');
-    return data ? JSON.parse(data) : [
-      { name: 'Chennai', country: 'India', latitude: 13.0827, longitude: 80.2707, timezone: 'Asia/Kolkata' },
-      { name: 'Mumbai', country: 'India', latitude: 19.0760, longitude: 72.8777, timezone: 'Asia/Kolkata' },
-      { name: 'Ahmedabad', country: 'India', latitude: 23.0225, longitude: 72.5714, timezone: 'Asia/Kolkata' },
-      { name: 'Jaipur', country: 'India', latitude: 26.9124, longitude: 75.7873, timezone: 'Asia/Kolkata' },
-      { name: 'Hyderabad', country: 'India', latitude: 17.3850, longitude: 78.4867, timezone: 'Asia/Kolkata' },
-      { name: 'Pune', country: 'India', latitude: 18.5204, longitude: 73.8567, timezone: 'Asia/Kolkata' }
+    const data = localStorage.getItem('weather_saved_locations');
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    // Fallback to favorites or defaults
+    const legacyFavs = localStorage.getItem('weather_favorites');
+    if (legacyFavs) {
+      const parsed = JSON.parse(legacyFavs);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const withHome = parsed.map((loc, idx) => ({ ...loc, isHome: idx === 0 }));
+        localStorage.setItem('weather_saved_locations', JSON.stringify(withHome));
+        return withHome;
+      }
+    }
+    const defaults = [
+      { name: 'Chennai', country: 'India', latitude: 13.0827, longitude: 80.2707, timezone: 'Asia/Kolkata', isHome: true },
+      { name: 'Mumbai', country: 'India', latitude: 19.0760, longitude: 72.8777, timezone: 'Asia/Kolkata', isHome: false },
+      { name: 'Bengaluru', country: 'India', latitude: 12.9716, longitude: 77.5946, timezone: 'Asia/Kolkata', isHome: false },
+      { name: 'New Delhi', country: 'India', latitude: 28.6139, longitude: 77.2090, timezone: 'Asia/Kolkata', isHome: false },
+      { name: 'London', country: 'United Kingdom', latitude: 51.5074, longitude: -0.1278, timezone: 'Europe/London', isHome: false }
     ];
+    localStorage.setItem('weather_saved_locations', JSON.stringify(defaults));
+    return defaults;
   } catch {
-    return [];
+    return [DEFAULT_LOCATION];
   }
 };
 
-export const toggleFavoriteLocation = (location) => {
-  if (!location || !location.name) return [];
+export const getHomeLocation = () => {
+  const saved = getSavedLocations();
+  return saved.find((loc) => loc.isHome) || saved[0] || DEFAULT_LOCATION;
+};
+
+export const setHomeLocation = (location) => {
+  if (!location || !location.name) return getSavedLocations();
   try {
-    const favs = getFavorites();
-    const exists = favs.some((f) => f.name.toLowerCase() === location.name.toLowerCase());
+    const list = getSavedLocations();
+    const exists = list.some((l) => l.name.toLowerCase() === location.name.toLowerCase());
     let updated;
     if (exists) {
-      updated = favs.filter((f) => f.name.toLowerCase() !== location.name.toLowerCase());
+      updated = list.map((l) => ({
+        ...l,
+        isHome: l.name.toLowerCase() === location.name.toLowerCase()
+      }));
     } else {
-      updated = [...favs, location];
+      updated = [{ ...location, isHome: true }, ...list.map((l) => ({ ...l, isHome: false }))];
     }
+    localStorage.setItem('weather_saved_locations', JSON.stringify(updated));
     localStorage.setItem('weather_favorites', JSON.stringify(updated));
     return updated;
   } catch (err) {
-    console.error('Failed to toggle favorite', err);
-    return [];
+    console.error('Failed to set home location', err);
+    return getSavedLocations();
+  }
+};
+
+export const saveLocation = (location) => {
+  if (!location || !location.name) return getSavedLocations();
+  try {
+    const list = getSavedLocations();
+    const exists = list.some((l) => l.name.toLowerCase() === location.name.toLowerCase());
+    if (exists) return list;
+    const isFirst = list.length === 0;
+    const updated = [...list, { ...location, isHome: isFirst }];
+    localStorage.setItem('weather_saved_locations', JSON.stringify(updated));
+    localStorage.setItem('weather_favorites', JSON.stringify(updated));
+    return updated;
+  } catch (err) {
+    console.error('Failed to save location', err);
+    return getSavedLocations();
+  }
+};
+
+export const removeSavedLocation = (location) => {
+  if (!location || !location.name) return getSavedLocations();
+  try {
+    const list = getSavedLocations();
+    let updated = list.filter((l) => l.name.toLowerCase() !== location.name.toLowerCase());
+    // If we removed the home location, make the first one home
+    if (updated.length > 0 && !updated.some((l) => l.isHome)) {
+      updated[0].isHome = true;
+    }
+    localStorage.setItem('weather_saved_locations', JSON.stringify(updated));
+    localStorage.setItem('weather_favorites', JSON.stringify(updated));
+    return updated;
+  } catch (err) {
+    console.error('Failed to remove location', err);
+    return getSavedLocations();
+  }
+};
+
+export const getFavorites = () => getSavedLocations();
+
+export const toggleFavoriteLocation = (location) => {
+  if (!location || !location.name) return [];
+  const list = getSavedLocations();
+  const exists = list.some((f) => f.name.toLowerCase() === location.name.toLowerCase());
+  if (exists) {
+    return removeSavedLocation(location);
+  } else {
+    return saveLocation(location);
   }
 };
 
 export const isLocationFavorite = (location) => {
   if (!location || !location.name) return false;
-  const favs = getFavorites();
+  const favs = getSavedLocations();
   return favs.some((f) => f.name.toLowerCase() === location.name.toLowerCase());
 };

@@ -1,0 +1,36 @@
+{
+  "name": "Aether Weather Pro",
+  "short_name": "Aether Pro",
+  "description": "Apple-inspired Weather Analytics Dashboard & AI Meteorologist",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08090f",
+  "theme_color": "#0c0d14",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='128' fill='%230b0f19'/><path d='M256 120v40m-96.2 39.8 28.3 28.3m192 0 28.3-28.3M120 256h40m232 0h40m-296.2 96.2 28.3-28.3m192 0 28.3 28.3M336 368a80 80 0 1 0-160 0' stroke='%2338bdf8' stroke-width='32' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='256' cy='256' r='64' fill='%2338bdf8' opacity='0.3'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["weather", "utilities", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Live Radar",
+      "url": "/?tab=radar",
+      "description": "Open live Doppler precipitation radar"
+    },
+    {
+      "name": "AI Meteorologist",
+      "url": "/?tab=chat",
+      "description": "Ask weather and commute questions"
+    },
+    {
+      "name": "Saved Cities",
+      "url": "/?tab=saved",
+      "description": "View and switch saved weather locations"
+    }
+  ]
+}

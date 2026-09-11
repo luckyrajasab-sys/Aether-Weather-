@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy, useRef } from 'react';
 import FloatingSideBar from './components/FloatingSideBar';
 import WeatherBackground from './components/WeatherBackground';
 import WeatherHero from './components/WeatherHero';
@@ -16,6 +16,10 @@ import SkeletonLoader from './components/SkeletonLoader';
 import LoadingScreen from './components/LoadingScreen';
 import ErrorScreen from './components/ErrorScreen';
 import Footer from './components/Footer';
+import WeatherChat from './components/WeatherChat';
+import SavedLocationsModal from './components/SavedLocationsModal';
+import InAppAlertNotification from './components/InAppAlertNotification';
+import MobileBottomNav from './components/MobileBottomNav';
 
 // Code-split heavy interactive modules
 const WeatherRadar = lazy(() => import('./components/WeatherRadar'));
@@ -30,29 +34,40 @@ import {
 } from './services/weatherService';
 import {
   detectCurrentLocation,
-  DEFAULT_LOCATION,
-  getFavorites,
+  getSavedLocations,
+  getHomeLocation,
   toggleFavoriteLocation,
   isLocationFavorite
 } from './services/locationService';
 
 function App() {
-  const [location, setLocation] = useState(DEFAULT_LOCATION);
+  const initialHome = getHomeLocation();
+  const [location, setLocation] = useState(initialHome);
   const [weather, setWeather] = useState(() =>
-    getCachedWeather(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude) ||
-    generateFallbackWeatherData(DEFAULT_LOCATION.latitude, DEFAULT_LOCATION.longitude, DEFAULT_LOCATION.timezone)
+    getCachedWeather(initialHome.latitude, initialHome.longitude) ||
+    generateFallbackWeatherData(initialHome.latitude, initialHome.longitude, initialHome.timezone)
   );
   const [loading, setLoading] = useState(false);
   const [isCityTransitioning, setIsCityTransitioning] = useState(false);
   const [error, setError] = useState(null);
   const [tempUnit, setTempUnit] = useState(() => localStorage.getItem('weather_temp_unit') || 'C');
   const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('weather_dark_mode') === 'true');
+  const [lowPowerMode, setLowPowerMode] = useState(() => localStorage.getItem('weather_low_power_mode') === 'true');
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-  const [favorites, setFavorites] = useState(() => getFavorites());
+  const [favorites, setFavorites] = useState(() => getSavedLocations());
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState('today');
 
-  const weatherRef = React.useRef(weather);
+  // Section Refs for smooth mobile navigation
+  const forecastRef = useRef(null);
+  const radarRef = useRef(null);
+  const alertsRef = useRef(null);
+  const topRef = useRef(null);
+
+  const weatherRef = useRef(weather);
   useEffect(() => {
     weatherRef.current = weather;
   }, [weather]);
@@ -86,12 +101,20 @@ function App() {
     }
   }, []);
 
-  // Handle URL Query Params (e.g. ?city=Tokyo or ?lat=35.67&lon=139.65)
+  // Handle URL Query Params (e.g. ?city=Tokyo or ?lat=35.67&lon=139.65 or ?tab=radar)
   const checkUrlParams = useCallback(async () => {
     const params = new URLSearchParams(window.location.search);
     const cityParam = params.get('city');
     const latParam = params.get('lat');
     const lonParam = params.get('lon');
+    const tabParam = params.get('tab');
+
+    if (tabParam === 'chat') setIsChatOpen(true);
+    if (tabParam === 'saved') setIsSavedModalOpen(true);
+    if (tabParam === 'radar') {
+      setActiveMobileTab('radar');
+      setTimeout(() => radarRef.current?.scrollIntoView({ behavior: 'smooth' }), 500);
+    }
 
     if (cityParam) {
       const results = await searchCities(cityParam);
@@ -144,25 +167,27 @@ function App() {
       setLocation(target);
       await loadWeather(target);
     } catch (err) {
-      console.warn('Geolocation failed, falling back to URL params or default:', err);
+      console.warn('Geolocation failed, falling back to home location:', err);
       const hadUrlTarget = await checkUrlParams();
       if (!hadUrlTarget && !weatherRef.current) {
-        setLocation(DEFAULT_LOCATION);
-        await loadWeather(DEFAULT_LOCATION);
+        const home = getHomeLocation();
+        setLocation(home);
+        await loadWeather(home);
       }
     } finally {
       setIsLoadingLocation(false);
     }
   }, [loadWeather, checkUrlParams]);
 
-  // Initial load: Open Chennai by default (or URL query parameter if specified)
+  // Initial load: Open Home city by default (or URL query parameter if specified)
   useEffect(() => {
     let isMounted = true;
     const initOpenCity = async () => {
       const hadUrlTarget = await checkUrlParams();
       if (!hadUrlTarget && isMounted) {
-        setLocation(DEFAULT_LOCATION);
-        await loadWeather(DEFAULT_LOCATION);
+        const home = getHomeLocation();
+        setLocation(home);
+        await loadWeather(home);
       }
     };
     initOpenCity();
@@ -196,6 +221,15 @@ function App() {
     });
   };
 
+  // Low-power Eco mode switcher
+  const handleToggleLowPowerMode = () => {
+    setLowPowerMode((prev) => {
+      const next = !prev;
+      localStorage.setItem('weather_low_power_mode', String(next));
+      return next;
+    });
+  };
+
   // Location selector
   const handleSelectLocation = (loc) => {
     setLocation(loc);
@@ -210,20 +244,84 @@ function App() {
 
   const isCurrentFavorite = isLocationFavorite(location);
 
+  // Switch between saved locations with horizontal swipe touch gestures
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+
+    // Only handle horizontal swipes with small vertical deflection
+    if (Math.abs(deltaX) > 75 && Math.abs(deltaY) < 50 && favorites.length > 1) {
+      const currentIndex = favorites.findIndex(
+        (f) => f.name.toLowerCase() === location.name.toLowerCase()
+      );
+      if (currentIndex !== -1) {
+        if (deltaX < 0) {
+          // Swipe left -> Next city
+          const nextIndex = (currentIndex + 1) % favorites.length;
+          handleSelectLocation(favorites[nextIndex]);
+        } else {
+          // Swipe right -> Previous city
+          const prevIndex = (currentIndex - 1 + favorites.length) % favorites.length;
+          handleSelectLocation(favorites[prevIndex]);
+        }
+      }
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  // Handle Mobile Tab Navigation Clicks
+  const handleMobileTabChange = (tabId) => {
+    setActiveMobileTab(tabId);
+    if (tabId === 'today') {
+      topRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else if (tabId === 'forecast') {
+      forecastRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else if (tabId === 'radar') {
+      radarRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else if (tabId === 'alerts') {
+      alertsRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   // Determine current weather visual theme group
   const weatherGroup = weather?.current?.weatherGroup || 'clear';
   const isDay = weather?.current?.isDay ?? 1;
+  const activeAlertsCount = (weather?.alerts || []).length;
 
   return (
-    <div className={`app-viewport ${isDarkMode ? 'dark-theme' : 'light-theme'}`}>
+    <div
+      className={`app-viewport ${isDarkMode ? 'dark-theme' : 'light-theme'}`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      ref={topRef}
+    >
       {/* Dynamic Atmospheric Canvas Background */}
       <WeatherBackground
         location={location}
         weatherGroup={weatherGroup}
         isDay={isDay}
         isDarkMode={isDarkMode}
+        lowPowerMode={lowPowerMode}
         windSpeed={weather?.current?.windSpeed || 15}
       />
+
+      {/* Push-Style In-App Alert Toast for Critical / High Severity Events */}
+      {weather?.alerts && (
+        <InAppAlertNotification
+          alerts={weather.alerts}
+          onOpenAlertsView={() => alertsRef.current?.scrollIntoView({ behavior: 'smooth' })}
+        />
+      )}
 
       {/* Main Dashboard Layout */}
       <div className="dashboard-content" style={{ paddingBottom: '7.5rem', paddingTop: '1.5rem' }}>
@@ -236,6 +334,10 @@ function App() {
           onToggleDarkMode={handleToggleDarkMode}
           isLoadingLocation={isLoadingLocation}
           onOpenShare={() => setIsShareModalOpen(true)}
+          onOpenChat={() => setIsChatOpen(true)}
+          onOpenSaved={() => setIsSavedModalOpen(true)}
+          lowPowerMode={lowPowerMode}
+          onToggleLowPowerMode={handleToggleLowPowerMode}
         />
 
         {/* Major Metro Cities Strip */}
@@ -244,13 +346,14 @@ function App() {
           onSelectCity={handleSelectLocation}
         />
 
-        {/* Starred Favorites Bar */}
+        {/* Starred Favorites & Saved Locations Strip */}
         <FavoritesBar
           favorites={favorites}
           currentLocation={location}
           onSelectFavorite={handleSelectLocation}
           onToggleFavorite={handleToggleFavorite}
           isCurrentFavorite={isCurrentFavorite}
+          onOpenManageSaved={() => setIsSavedModalOpen(true)}
         />
 
         {loading ? (
@@ -262,10 +365,12 @@ function App() {
         ) : weather ? (
           <>
             {/* Pulsing UV & Meteorological Severe Weather Alerts */}
-            <WeatherAlerts
-              alerts={weather.alerts}
-              uvIndex={weather.current?.uvIndex || 0}
-            />
+            <div ref={alertsRef}>
+              <WeatherAlerts
+                alerts={weather.alerts}
+                uvIndex={weather.current?.uvIndex || 0}
+              />
+            </div>
 
             {/* Main Weather Hero Card with Count-Up & 3D Tilt */}
             <div className="animate-fade-in stagger-2">
@@ -292,8 +397,8 @@ function App() {
               />
             </div>
 
-            {/* 24-Hour Scrolling Forecast */}
-            <div className="animate-fade-in stagger-5">
+            {/* 24-Hour Scrolling Forecast & 14-Day Extended Daily Forecast */}
+            <div ref={forecastRef} className="animate-fade-in stagger-5">
               <HourlyForecast
                 hourly={weather.hourly}
                 tempUnit={tempUnit}
@@ -301,7 +406,6 @@ function App() {
               />
             </div>
 
-            {/* 7-Day & 14-Day Extended Daily Forecast */}
             <div className="animate-fade-in stagger-6">
               <DailyForecast
                 daily={weather.daily}
@@ -310,8 +414,8 @@ function App() {
               />
             </div>
 
-            {/* Interactive Live Radar & Precipitation Map (Code-split) */}
-            <div className="animate-fade-in stagger-7">
+            {/* Interactive Live Radar & Doppler Precipitation Map (Code-split) */}
+            <div ref={radarRef} className="animate-fade-in stagger-7">
               <Suspense fallback={<div className="glass-card skeleton-card" style={{ height: '380px' }} />}>
                 <WeatherRadar
                   latitude={location.latitude}
@@ -358,8 +462,37 @@ function App() {
         ) : null}
       </div>
 
+      {/* Conversational AI Meteorologist Panel */}
+      <WeatherChat
+        weather={weather}
+        location={location}
+        tempUnit={tempUnit}
+        isOpen={isChatOpen}
+        onOpen={() => setIsChatOpen(true)}
+        onClose={() => setIsChatOpen(false)}
+      />
+
+      {/* Saved Locations & Home City Management Modal */}
+      <SavedLocationsModal
+        isOpen={isSavedModalOpen}
+        onClose={() => setIsSavedModalOpen(false)}
+        currentLocation={location}
+        onSelectLocation={handleSelectLocation}
+        onSavedLocationsChange={(updatedList) => setFavorites(updatedList)}
+      />
+
       {/* Floating Bottom Search Bar */}
       <BottomSearchBar onSelectLocation={handleSelectLocation} />
+
+      {/* iOS/Apple-Style Mobile Bottom Navigation Dock */}
+      <MobileBottomNav
+        activeTab={activeMobileTab}
+        onTabChange={handleMobileTabChange}
+        alertCount={activeAlertsCount}
+        onOpenSavedModal={() => setIsSavedModalOpen(true)}
+        onOpenChatModal={() => setIsChatOpen(true)}
+        isChatOpen={isChatOpen}
+      />
     </div>
   );
 }

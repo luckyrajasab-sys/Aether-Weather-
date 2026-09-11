@@ -5,7 +5,11 @@ import {
   Sun,
   Moon,
   Loader2,
-  Share2
+  Share2,
+  Sparkles,
+  Bookmark,
+  Zap,
+  ZapOff
 } from 'lucide-react';
 
 export const FloatingSideBar = ({
@@ -15,7 +19,11 @@ export const FloatingSideBar = ({
   isDarkMode,
   onToggleDarkMode,
   isLoadingLocation,
-  onOpenShare
+  onOpenShare,
+  onOpenChat,
+  onOpenSaved,
+  lowPowerMode,
+  onToggleLowPowerMode
 }) => {
   return (
     <aside className="flying-sidebar-dock glass-card">
@@ -23,7 +31,7 @@ export const FloatingSideBar = ({
       <div
         className="sidebar-brand-btn"
         onClick={() => onRequestLocation()}
-        title="Aether Weather Pro"
+        title="Aether Weather Pro — Click to Refresh My Location"
       >
         <div className="sidebar-brand-icon">
           <CloudSun size={22} />
@@ -41,7 +49,7 @@ export const FloatingSideBar = ({
           className="sidebar-action-btn primary"
           onClick={onRequestLocation}
           disabled={isLoadingLocation}
-          title="Detect My Location"
+          title="Detect GPS / IP Location"
           aria-label="Detect Current Location"
         >
           {isLoadingLocation ? (
@@ -51,6 +59,32 @@ export const FloatingSideBar = ({
           )}
           <div className="sidebar-tooltip">{isLoadingLocation ? 'Locating...' : 'My Location'}</div>
         </button>
+
+        {/* AI Meteorologist Chat Launcher */}
+        {onOpenChat && (
+          <button
+            className="sidebar-action-btn ai-btn"
+            onClick={onOpenChat}
+            title="Ask Aether AI Meteorologist"
+            aria-label="Open AI Meteorologist"
+          >
+            <Sparkles size={18} className="sparkle-anim" color="#38BDF8" />
+            <div className="sidebar-tooltip">AI Meteorologist</div>
+          </button>
+        )}
+
+        {/* Saved Locations Manager */}
+        {onOpenSaved && (
+          <button
+            className="sidebar-action-btn"
+            onClick={onOpenSaved}
+            title="Saved Locations & Home City"
+            aria-label="Manage Saved Locations"
+          >
+            <Bookmark size={18} color="#FBBF24" />
+            <div className="sidebar-tooltip">Saved Cities</div>
+          </button>
+        )}
 
         {/* Share Snapshot Button */}
         {onOpenShare && (
@@ -86,6 +120,19 @@ export const FloatingSideBar = ({
           {isDarkMode ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#A78BFA" />}
           <div className="sidebar-tooltip">{isDarkMode ? 'Bright Glass' : 'Dark Glass'}</div>
         </button>
+
+        {/* Low Power Mode Toggle */}
+        {onToggleLowPowerMode && (
+          <button
+            className={`sidebar-action-btn ${lowPowerMode ? 'active-power' : ''}`}
+            onClick={onToggleLowPowerMode}
+            title={lowPowerMode ? 'Low Power Mode: ON (Fast)' : 'Low Power Mode: OFF'}
+            aria-label="Toggle Low Power Mode"
+          >
+            {lowPowerMode ? <Zap size={18} color="#10B981" /> : <ZapOff size={18} color="var(--text-muted)" />}
+            <div className="sidebar-tooltip">{lowPowerMode ? 'Eco Mode: ON' : 'Eco Mode: OFF'}</div>
+          </button>
+        )}
       </div>
     </aside>
   );

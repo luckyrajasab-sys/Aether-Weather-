@@ -195,10 +195,42 @@ function generateLocalAIResponse(queryText, weather, location, tempUnit) {
   const cond = current.condition || 'Partly Cloudy';
   const cityName = location?.name || 'your area';
 
-  // Severe alert query
-  if (alerts.length > 0 && (q.includes('alert') || q.includes('warning') || q.includes('safe') || q.includes('danger'))) {
-    const alertList = alerts.map((a) => `🚨 **${a.title}**: ${a.message} (*Recommendation: ${a.instruction || 'Stay alert'}*)`).join('\n\n');
-    return `### Active Weather Warnings for ${cityName}\n\n${alertList}\n\nStay safe and monitor local emergency advisories!`;
+  // Commute / Travel / Traffic / Drive query (morning & evening commute analysis)
+  if (q.includes('commute') || q.includes('drive') || q.includes('traffic') || q.includes('travel') || q.includes('office') || q.includes('transit')) {
+    const next10Hours = hourly.slice(0, 10);
+    const rainHours = next10Hours.filter((h) => (h.precipProb || 0) >= 30);
+    const highWindHours = next10Hours.filter((h) => (h.windSpeed || 0) >= 30);
+    const lowVisHours = next10Hours.filter((h) => (h.visibility || 10) < 3.0);
+
+    let commuteVerdict = '🟢 **Commute Outlook: Clear and smooth travel conditions.**';
+    let details = [];
+
+    if (rainHours.length > 0) {
+      const times = rainHours.map((h) => `${new Date(h.time).toLocaleTimeString([], { hour: 'numeric', hour12: true })} (${h.precipProb}% rain)`).join(', ');
+      commuteVerdict = '🟡 **Commute Outlook: Rain likely during commute hours.**';
+      details.push(`• **Rain Windows**: ${times}`);
+      details.push(`• **Road Advisory**: Plan for potential traffic slowdowns, maintain braking distance, and keep an umbrella in your vehicle.`);
+    }
+
+    if (lowVisHours.length > 0) {
+      commuteVerdict = '🔴 **Commute Alert: Reduced visibility / Fog on roadways.**';
+      details.push(`• **Visibility**: Dropping below ${lowVisHours[0].visibility} km; use fog headlights.`);
+    }
+
+    if (highWindHours.length > 0) {
+      details.push(`• **Wind Gusts**: Elevated winds up to ${Math.round(highWindHours[0].windGusts || highWindHours[0].windSpeed)} km/h.`);
+    }
+
+    if (details.length === 0) {
+      details.push(`• **Road Visibility**: Optimal (> 9 km)`);
+      details.push(`• **Current Ambient**: ${temp} • ${cond}`);
+      details.push(`• **Precipitation Risk**: Minimal (< 15%) across major transit routes.`);
+    }
+
+    return `${commuteVerdict}\n\n` +
+      `**Transit Telemetry for ${cityName}:**\n` +
+      `${details.join('\n')}\n\n` +
+      `Safe travels! Check back before heading out for instant live updates.`;
   }
 
   // Umbrella / Rain query

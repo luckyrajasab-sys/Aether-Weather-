@@ -8,18 +8,20 @@ import {
   User,
   RotateCcw,
   AlertCircle,
+  Car,
   ChevronRight
 } from 'lucide-react';
 import { sendChatMessage } from '../services/aiService';
 import { formatTemperature } from '../utils/formatWeatherData';
 
 const SUGGESTED_PROMPTS = [
+  '🚗 Will it rain during my commute?',
   '🌧️ Do I need an umbrella today?',
   '🚴 Is it safe to ride my bike right now?',
   '👗 What should I wear today?',
   '🏃 Best time for outdoor workout?',
   '☀️ UV & sun protection advice',
-  '📅 3-day forecast summary'
+  '🚨 Active weather alerts summary'
 ];
 
 /**
@@ -28,7 +30,6 @@ const SUGGESTED_PROMPTS = [
 const FormattedMarkdown = ({ text }) => {
   if (!text) return null;
 
-  // Split lines
   const lines = text.split('\n');
 
   return (
@@ -66,21 +67,41 @@ const FormattedMarkdown = ({ text }) => {
 
         if (isBullet) {
           return (
-            <div key={`bullet-${lineIdx}`} style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.25rem', marginBottom: '0.2rem' }}>
+            <div key={`bullet-${lineIdx}`} style={{ display: 'flex', gap: '0.45rem', marginLeft: '0.25rem', marginBottom: '0.25rem', lineHeight: 1.4 }}>
               <span style={{ color: 'var(--primary-color)' }}>•</span>
               <span>{renderedContent}</span>
             </div>
           );
         }
 
-        return <p key={`p-${lineIdx}`} style={{ margin: '0.2rem 0' }}>{renderedContent}</p>;
+        return <p key={`p-${lineIdx}`} style={{ margin: '0.25rem 0', lineHeight: 1.45 }}>{renderedContent}</p>;
       })}
     </div>
   );
 };
 
-export const WeatherChat = ({ weather, location, tempUnit }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const WeatherChat = ({
+  weather,
+  location,
+  tempUnit,
+  isOpen: externalIsOpen,
+  onOpen: externalOnOpen,
+  onClose: externalOnClose
+}) => {
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+
+  const handleOpen = () => {
+    if (externalOnOpen) externalOnOpen();
+    else setInternalIsOpen(true);
+    setHasUnread(false);
+  };
+
+  const handleClose = () => {
+    if (externalOnClose) externalOnClose();
+    else setInternalIsOpen(false);
+  };
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -93,8 +114,10 @@ export const WeatherChat = ({ weather, location, tempUnit }) => {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [messages, isTyping, isOpen]);
 
   // Initial welcome greeting
   useEffect(() => {
@@ -102,7 +125,7 @@ export const WeatherChat = ({ weather, location, tempUnit }) => {
       const initialGreeting = `👋 Hi there! I'm your **Aether AI Meteorologist** for **${location.name}**.\n\n` +
         `Current conditions: **${formatTemperature(weather.current?.temperature, tempUnit)}** (${weather.current?.condition}), ` +
         `humidity at **${Math.round(weather.current?.humidity || 50)}%**, wind at **${Math.round(weather.current?.windSpeed || 0)} km/h**.\n\n` +
-        `Ask me anything about outdoor activities, rain timings, outfit choices, or 7-day trends!`;
+        `Ask me anything about commute rain timing, outdoor workouts, outfit suggestions, or 7-day weather insights!`;
 
       setMessages([
         {
@@ -181,14 +204,11 @@ export const WeatherChat = ({ weather, location, tempUnit }) => {
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating Trigger Button (Desktop / Tablet) */}
       {!isOpen && (
         <button
           className="chat-floating-btn glass-card"
-          onClick={() => {
-            setIsOpen(true);
-            setHasUnread(false);
-          }}
+          onClick={handleOpen}
           title="Open AI Weather Analyst"
           aria-label="Open AI Weather Analyst"
         >
@@ -200,139 +220,146 @@ export const WeatherChat = ({ weather, location, tempUnit }) => {
         </button>
       )}
 
-      {/* Slide-in Chat Panel */}
+      {/* Slide-in Chat Drawer / Modal */}
       {isOpen && (
-        <div className="chat-drawer-container glass-card">
-          {/* Header */}
-          <div className="chat-header">
-            <div className="chat-header-info">
-              <div className="chat-avatar-icon">
-                <Bot size={20} />
-              </div>
-              <div>
-                <div className="chat-header-title">
-                  <span>Aether AI Meteorologist</span>
-                  <span className="chat-live-tag">LIVE</span>
+        <div className="chat-backdrop" onClick={handleClose}>
+          <div
+            className="chat-drawer-container glass-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="chat-header">
+              <div className="chat-header-info">
+                <div className="chat-avatar-icon">
+                  <Bot size={20} />
                 </div>
-                <div className="chat-header-sub">
-                  Grounded in {location.name} telemetry • {formatTemperature(weather?.current?.temperature, tempUnit)}
+                <div>
+                  <div className="chat-header-title">
+                    <span>Aether AI Meteorologist</span>
+                    <span className="chat-live-tag">LIVE</span>
+                  </div>
+                  <div className="chat-header-sub">
+                    Grounded in {location.name} telemetry • {formatTemperature(weather?.current?.temperature, tempUnit)}
+                  </div>
                 </div>
+              </div>
+
+              <div className="chat-header-actions">
+                <button
+                  className="chat-tool-btn"
+                  onClick={handleResetChat}
+                  title="New Chat / Reset Conversation"
+                >
+                  <RotateCcw size={15} />
+                </button>
+                <button
+                  className="chat-tool-btn"
+                  onClick={handleClose}
+                  title="Close Chat"
+                  aria-label="Close Chat"
+                >
+                  <X size={18} />
+                </button>
               </div>
             </div>
 
-            <div className="chat-header-actions">
-              <button
-                className="chat-tool-btn"
-                onClick={handleResetChat}
-                title="New Chat / Reset Conversation"
-              >
-                <RotateCcw size={15} />
-              </button>
-              <button
-                className="chat-tool-btn"
-                onClick={() => setIsOpen(false)}
-                title="Close Chat"
-              >
-                <X size={18} />
-              </button>
+            {/* Error Toast if active */}
+            {errorToast && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.25)',
+                borderBottom: '1px solid rgba(239, 68, 68, 0.4)',
+                padding: '0.5rem 1rem',
+                fontSize: '0.8rem',
+                color: '#FEF2F2',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }}>
+                <AlertCircle size={14} color="#EF4444" />
+                <span>{errorToast}</span>
+              </div>
+            )}
+
+            {/* Quick Prompt Suggestions */}
+            <div className="chat-suggestions-bar">
+              {SUGGESTED_PROMPTS.map((promptText, idx) => (
+                <button
+                  key={`prompt-${idx}`}
+                  className="chat-suggestion-chip"
+                  onClick={() => handleSendMessage(promptText)}
+                  disabled={isTyping}
+                >
+                  {promptText}
+                </button>
+              ))}
             </div>
-          </div>
 
-          {/* Error Toast if active */}
-          {errorToast && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.25)',
-              borderBottom: '1px solid rgba(239, 68, 68, 0.4)',
-              padding: '0.5rem 1rem',
-              fontSize: '0.8rem',
-              color: '#FEF2F2',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem'
-            }}>
-              <AlertCircle size={14} color="#EF4444" />
-              <span>{errorToast}</span>
-            </div>
-          )}
+            {/* Messages Body */}
+            <div className="chat-messages-body">
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={`chat-bubble-wrapper ${m.sender === 'user' ? 'user-msg' : 'ai-msg'}`}
+                >
+                  {m.sender === 'ai' && (
+                    <div className="chat-msg-avatar">
+                      <Sparkles size={14} />
+                    </div>
+                  )}
+                  <div className="chat-bubble">
+                    <FormattedMarkdown text={m.text} />
+                    <div className="chat-bubble-time">{m.time}</div>
+                  </div>
+                  {m.sender === 'user' && (
+                    <div className="chat-msg-avatar user">
+                      <User size={14} />
+                    </div>
+                  )}
+                </div>
+              ))}
 
-          {/* Quick Prompt Suggestions */}
-          <div className="chat-suggestions-bar">
-            {SUGGESTED_PROMPTS.map((promptText, idx) => (
-              <button
-                key={`prompt-${idx}`}
-                className="chat-suggestion-chip"
-                onClick={() => handleSendMessage(promptText)}
-                disabled={isTyping}
-              >
-                {promptText}
-              </button>
-            ))}
-          </div>
-
-          {/* Messages Body */}
-          <div className="chat-messages-body">
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`chat-bubble-wrapper ${m.sender === 'user' ? 'user-msg' : 'ai-msg'}`}
-              >
-                {m.sender === 'ai' && (
+              {isTyping && (
+                <div className="chat-bubble-wrapper ai-msg">
                   <div className="chat-msg-avatar">
                     <Sparkles size={14} />
                   </div>
-                )}
-                <div className="chat-bubble">
-                  <FormattedMarkdown text={m.text} />
-                  <div className="chat-bubble-time">{m.time}</div>
-                </div>
-                {m.sender === 'user' && (
-                  <div className="chat-msg-avatar user">
-                    <User size={14} />
+                  <div className="chat-bubble typing-bubble">
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
+                    <span className="typing-dot" />
                   </div>
-                )}
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="chat-bubble-wrapper ai-msg">
-                <div className="chat-msg-avatar">
-                  <Sparkles size={14} />
                 </div>
-                <div className="chat-bubble typing-bubble">
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                  <span className="typing-dot" />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
 
-          {/* Input Form */}
-          <form
-            className="chat-input-area"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-          >
-            <input
-              type="text"
-              className="chat-input"
-              placeholder="Ask about umbrella, biking, outfit, workout..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={isTyping}
-            />
-            <button
-              type="submit"
-              className="chat-send-btn"
-              disabled={!input.trim() || isTyping}
-              aria-label="Send message"
+            {/* Input Form */}
+            <form
+              className="chat-input-area"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
             >
-              <Send size={16} />
-            </button>
-          </form>
+              <input
+                type="text"
+                className="chat-input"
+                placeholder="Ask about commute, umbrella, outfit, cycling..."
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                disabled={isTyping}
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="chat-send-btn"
+                disabled={!input.trim() || isTyping}
+                aria-label="Send message"
+              >
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </>
